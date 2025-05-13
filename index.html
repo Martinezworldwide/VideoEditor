@@ -33,13 +33,11 @@
   </div>
 
   <script type="module">
-    import { createFFmpeg } from 'https://cdn.skypack.dev/@ffmpeg/ffmpeg';
-    import { fetchFile } from 'https://cdn.skypack.dev/@ffmpeg/util';
+    import { FFmpeg } from '@ffmpeg/ffmpeg';
+    import { toBlobURL } from '@ffmpeg/util';
 
-    const ffmpeg = createFFmpeg({ 
-      log: true,
-      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-    });
+    const ffmpeg = new FFmpeg();
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
 
     const uploader = document.getElementById('uploader');
     const combineBtn = document.getElementById('combineBtn');
@@ -97,9 +95,12 @@
         showLoading();
         combineBtn.disabled = true;
         
-        if (!ffmpeg.isLoaded()) {
+        if (!ffmpeg.loaded) {
           updateStatus('Loading FFmpeg...');
-          await ffmpeg.load();
+          await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          });
         }
 
         updateStatus('Processing files...');
@@ -107,17 +108,23 @@
 
         for (let i = 0; i < files.length; i++) {
           const fileName = `input${i}.mp4`;
-          ffmpeg.FS('writeFile', fileName, await fetchFile(files[i]));
+          await ffmpeg.writeFile(fileName, await files[i].arrayBuffer());
           concatList.push(`file '${fileName}'`);
         }
 
-        ffmpeg.FS('writeFile', 'list.txt', concatList.join('\n'));
+        await ffmpeg.writeFile('list.txt', concatList.join('\n'));
 
         updateStatus('Merging videos...');
-        await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4');
+        await ffmpeg.exec([
+          '-f', 'concat',
+          '-safe', '0',
+          '-i', 'list.txt',
+          '-c', 'copy',
+          'output.mp4'
+        ]);
 
-        const data = ffmpeg.FS('readFile', 'output.mp4');
-        const mergedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+        const data = await ffmpeg.readFile('output.mp4');
+        const mergedBlob = new Blob([data], { type: 'video/mp4' });
         finalVideo.src = URL.createObjectURL(mergedBlob);
         downloadBtn.href = finalVideo.src;
         

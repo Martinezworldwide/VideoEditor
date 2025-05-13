@@ -1,0 +1,16 @@
+{
+  "name": "video-editor",
+  "version": "1.0.0",
+  "description": "A web-based MP4 video combiner",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.6",
+    "@ffmpeg/util": "^0.12.1"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+} 
