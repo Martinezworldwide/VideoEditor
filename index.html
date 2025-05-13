@@ -2,22 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Video Combiner</title>
+  <title>MP4 Video Combiner</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>MP4 Combiner (Client-Side)</h1>
+  <h1>Client-Side MP4 Combiner</h1>
 
   <input type="file" id="uploader" accept="video/mp4" multiple>
   <div id="previews"></div>
   <button id="combineBtn">Merge Videos</button>
-
   <p id="status"></p>
   <video id="finalVideo" controls></video>
 
-  <!-- ✅ Load ffmpeg.wasm as ES module -->
   <script type="module">
-    import { createFFmpeg, fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/+esm';
+    import { createFFmpeg } from 'https://cdn.skypack.dev/@ffmpeg/ffmpeg';
+    import { fetchFile } from 'https://cdn.skypack.dev/@ffmpeg/util';
 
     const ffmpeg = createFFmpeg({ log: true });
 
@@ -29,10 +28,9 @@
 
     let files = [];
 
-    uploader.addEventListener('change', async (event) => {
+    uploader.addEventListener('change', (event) => {
       files = Array.from(event.target.files);
       previews.innerHTML = '';
-
       files.forEach(file => {
         const video = document.createElement('video');
         video.src = URL.createObjectURL(file);
@@ -43,14 +41,14 @@
 
     combineBtn.addEventListener('click', async () => {
       if (files.length < 2) {
-        alert('Please upload at least 2 videos to combine.');
+        alert('Please upload at least 2 MP4 files.');
         return;
       }
 
       status.innerText = 'Loading ffmpeg...';
       if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-      status.innerText = 'Writing files...';
+      status.innerText = 'Processing files...';
       const concatList = [];
 
       for (let i = 0; i < files.length; i++) {
@@ -61,7 +59,7 @@
 
       ffmpeg.FS('writeFile', 'list.txt', concatList.join('\n'));
 
-      status.innerText = 'Merging...';
+      status.innerText = 'Merging videos...';
       await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4');
 
       const data = ffmpeg.FS('readFile', 'output.mp4');
