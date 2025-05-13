@@ -1,0 +1,18 @@
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: #fff;
+  padding: 20px;
+  text-align: center;
+}
+#previews video {
+  width: 200px;
+  margin: 10px;
+  border: 2px solid #555;
+}
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin-top: 15px;
+  cursor: pointer;
+}
