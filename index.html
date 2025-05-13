@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Combiner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>MP4 Combiner (Browser-Based)</h1>
+
+  <input type="file" id="uploader" accept="video/mp4" multiple>
+  <div id="previews"></div>
+  <button id="combineBtn">Merge Videos</button>
+
+  <p id="status"></p>
+  <video id="finalVideo" controls></video>
+
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.4/dist/ffmpeg.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
