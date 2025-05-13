@@ -2,79 +2,133 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MP4 Video Combiner</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Client-Side MP4 Combiner</h1>
+  <div class="container">
+    <h1>MP4 Video Combiner</h1>
+    <p class="description">Upload multiple MP4 files to combine them into a single video</p>
 
-  <input type="file" id="uploader" accept="video/mp4" multiple>
-  <div id="previews"></div>
-  <button id="combineBtn">Merge Videos</button>
-  <p id="status"></p>
-  <video id="finalVideo" controls></video>
+    <div class="upload-section">
+      <label for="uploader" class="upload-label">
+        <span>Choose MP4 Files</span>
+        <input type="file" id="uploader" accept="video/mp4" multiple>
+      </label>
+    </div>
+
+    <div id="previews" class="preview-grid"></div>
+
+    <div class="controls">
+      <button id="combineBtn" disabled>Merge Videos</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div id="result" class="result-section" style="display: none;">
+      <h2>Combined Video</h2>
+      <video id="finalVideo" controls></video>
+      <a id="downloadBtn" class="download-btn" download="combined.mp4">⬇ Download Combined Video</a>
+    </div>
+  </div>
 
   <script type="module">
     import { createFFmpeg } from 'https://cdn.skypack.dev/@ffmpeg/ffmpeg';
     import { fetchFile } from 'https://cdn.skypack.dev/@ffmpeg/util';
 
-    const ffmpeg = createFFmpeg({ log: true });
+    const ffmpeg = createFFmpeg({ 
+      log: true,
+      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
 
     const uploader = document.getElementById('uploader');
     const combineBtn = document.getElementById('combineBtn');
     const previews = document.getElementById('previews');
     const finalVideo = document.getElementById('finalVideo');
     const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     let files = [];
+
+    function updateStatus(message, isError = false) {
+      status.textContent = message;
+      status.className = `status ${isError ? 'error' : ''}`;
+    }
+
+    function showLoading() {
+      status.innerHTML = '<div class="loader"></div> Processing...';
+    }
 
     uploader.addEventListener('change', (event) => {
       files = Array.from(event.target.files);
       previews.innerHTML = '';
-      files.forEach(file => {
+      
+      if (files.length < 2) {
+        updateStatus('Please select at least 2 MP4 files', true);
+        combineBtn.disabled = true;
+        return;
+      }
+
+      combineBtn.disabled = false;
+      updateStatus(`Selected ${files.length} files`);
+      
+      files.forEach((file, index) => {
         const video = document.createElement('video');
         video.src = URL.createObjectURL(file);
         video.controls = true;
-        previews.appendChild(video);
+        video.className = 'preview-video';
+        
+        const container = document.createElement('div');
+        container.className = 'preview-container';
+        container.appendChild(video);
+        
+        const label = document.createElement('div');
+        label.className = 'preview-label';
+        label.textContent = `Video ${index + 1}`;
+        container.appendChild(label);
+        
+        previews.appendChild(container);
       });
     });
 
     combineBtn.addEventListener('click', async () => {
-      if (files.length < 2) {
-        alert('Please upload at least 2 MP4 files.');
-        return;
+      try {
+        showLoading();
+        combineBtn.disabled = true;
+        
+        if (!ffmpeg.isLoaded()) {
+          updateStatus('Loading FFmpeg...');
+          await ffmpeg.load();
+        }
+
+        updateStatus('Processing files...');
+        const concatList = [];
+
+        for (let i = 0; i < files.length; i++) {
+          const fileName = `input${i}.mp4`;
+          ffmpeg.FS('writeFile', fileName, await fetchFile(files[i]));
+          concatList.push(`file '${fileName}'`);
+        }
+
+        ffmpeg.FS('writeFile', 'list.txt', concatList.join('\n'));
+
+        updateStatus('Merging videos...');
+        await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4');
+
+        const data = ffmpeg.FS('readFile', 'output.mp4');
+        const mergedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+        finalVideo.src = URL.createObjectURL(mergedBlob);
+        downloadBtn.href = finalVideo.src;
+        
+        result.style.display = 'block';
+        updateStatus('Done! Video has been combined successfully.');
+      } catch (error) {
+        console.error(error);
+        updateStatus('Error: ' + error.message, true);
+      } finally {
+        combineBtn.disabled = false;
       }
-
-      status.innerText = 'Loading ffmpeg...';
-      if (!ffmpeg.isLoaded()) await ffmpeg.load();
-
-      status.innerText = 'Processing files...';
-      const concatList = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const fileName = `input${i}.mp4`;
-        ffmpeg.FS('writeFile', fileName, await fetchFile(files[i]));
-        concatList.push(`file '${fileName}'`);
-      }
-
-      ffmpeg.FS('writeFile', 'list.txt', concatList.join('\n'));
-
-      status.innerText = 'Merging videos...';
-      await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4');
-
-      const data = ffmpeg.FS('readFile', 'output.mp4');
-      const mergedBlob = new Blob([data.buffer], { type: 'video/mp4' });
-      finalVideo.src = URL.createObjectURL(mergedBlob);
-
-      const a = document.createElement('a');
-      a.href = finalVideo.src;
-      a.download = 'combined.mp4';
-      a.textContent = '⬇ Download Combined Video';
-      a.style.display = 'block';
-      a.style.marginTop = '10px';
-      document.body.appendChild(a);
-
-      status.innerText = 'Done!';
     });
   </script>
 </body>
